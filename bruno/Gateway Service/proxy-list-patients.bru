@@ -1,0 +1,14 @@
+meta {
+  name: Proxy List Patients
+  type: http
+  seq: 5
+}
+
+get {
+  url: http://localhost:9000/api/v1/patients
+  body: none
+}
+
+headers {
+  Authorization: Bearer reception_test
+}

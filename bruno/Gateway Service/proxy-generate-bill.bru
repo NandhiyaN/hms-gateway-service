@@ -1,0 +1,14 @@
+meta {
+  name: Proxy Generate Bill
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:9000/api/v1/bills/generate-from-appointment/1
+  body: none
+}
+
+headers {
+  Authorization: Bearer billing_test
+}

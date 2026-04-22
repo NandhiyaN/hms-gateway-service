@@ -1,0 +1,433 @@
+openapi: 3.0.3
+info:
+  title: HMS Gateway / Authentication API
+  version: 1.0.0
+  description: >
+    API Gateway and Authentication Service for Hospital Management System.
+    Supports mock login, identity lookup, composed appointment retrieval,
+    billing proxy operations, and generic proxy routing.
+
+servers:
+  - url: http://localhost:9000
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Gateway health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: gateway
+
+  /api/v1/auth/login:
+    post:
+      summary: Login and get bearer token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/me:
+    get:
+      summary: Get current authenticated role
+      tags:
+        - Authentication
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user role
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    example: admin
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/v1/appointments/{appointment_id}:
+    get:
+      summary: Get composed appointment details
+      description: >
+        Fetches appointment details from Appointment Service and combines related
+        patient and doctor data from downstream services.
+      tags:
+        - Gateway
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: appointment_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Composed appointment details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  appointment:
+                    type: object
+                    additionalProperties: true
+                  patient:
+                    type: object
+                    additionalProperties: true
+                  doctor:
+                    type: object
+                    additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '503':
+          description: Downstream service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/bills/generate-from-appointment/{id}:
+    post:
+      summary: Proxy bill generation request
+      tags:
+        - Billing Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Bill generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid request / appointment not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '503':
+          description: Downstream billing service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/bills/handle-cancellation/{id}:
+    post:
+      summary: Proxy billing cancellation handling request
+      tags:
+        - Billing Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRequest'
+      responses:
+        '200':
+          description: Cancellation billing update successful
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Invalid cancellation request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '503':
+          description: Downstream billing service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/{service_name}/{path}:
+    get:
+      summary: Generic GET proxy
+      tags:
+        - Generic Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: service_name
+          required: true
+          schema:
+            type: string
+            example: patients
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+            example: 1
+      responses:
+        '200':
+          description: Successful proxied response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      summary: Generic POST proxy
+      tags:
+        - Generic Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: service_name
+          required: true
+          schema:
+            type: string
+            example: patients
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+            example: ""
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful proxied response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      summary: Generic PUT proxy
+      tags:
+        - Generic Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: service_name
+          required: true
+          schema:
+            type: string
+            example: patients
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+            example: 1
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Successful proxied response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      summary: Generic DELETE proxy
+      tags:
+        - Generic Proxy
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: service_name
+          required: true
+          schema:
+            type: string
+            example: patients
+        - in: path
+          name: path
+          required: true
+          schema:
+            type: string
+            example: 1
+      responses:
+        '200':
+          description: Successful proxied response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: MockToken
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: admin_user
+        password:
+          type: string
+          example: admin_pass
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: admin_test
+        token_type:
+          type: string
+          example: bearer
+        role:
+          type: string
+          example: admin
+
+    CancelRequest:
+      type: object
+      required:
+        - penalty
+      properties:
+        penalty:
+          type: number
+          format: float
+          example: 0.5
+          description: Cancellation penalty ratio between 0 and 1
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "401"
+        message:
+          type: string
+          example: Invalid credentials
+        correlationId:
+          type: string
+          example: 1c6f46f0-2b76-44ff-9a83-26f6c0b2c3b9
+
+  responses:
+    UnauthorizedError:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ForbiddenError:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -1,0 +1,21 @@
+meta {
+  name: Auth Login Billing
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:9000/api/v1/auth/login
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "billing_user",
+    "password": "billing_pass"
+  }
+}
