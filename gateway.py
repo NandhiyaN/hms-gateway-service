@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import asyncio
@@ -9,8 +10,21 @@ from common_utils import (
     setup_json_logger,
 )
 
+#app = FastAPI(title="HMS API Gateway")
+#app.add_middleware(CorrelationIdMiddleware)
+
+
 app = FastAPI(title="HMS API Gateway")
-app.add_middleware(CorrelationIdMiddleware)
+
+# 2. ADD THIS BLOCK IMMEDIATELY AFTER app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows your React dev server to connect
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 setup_exception_handlers(app)
 
 logger = setup_json_logger("gateway_service")
@@ -169,6 +183,7 @@ async def generic_proxy(service_name: str, path: str, request: Request):
 
     base_url = SERVICES[service_name].rstrip("/")
     full_url = f"{base_url}/{service_name}/{path.lstrip('/')}"
+    #full_url = f"{base_url}/{path.lstrip('/')}"
 
     if request.query_params:
         full_url += f"?{request.query_params}"
