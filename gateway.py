@@ -182,8 +182,11 @@ async def generic_proxy(service_name: str, path: str, request: Request):
         raise HTTPException(status_code=404, detail="Service not mapped")
 
     base_url = SERVICES[service_name].rstrip("/")
-    full_url = f"{base_url}/{service_name}/{path.lstrip('/')}"
-    #full_url = f"{base_url}/{path.lstrip('/')}"
+ 
+    if path:
+        full_url = f"{base_url}/{path.lstrip('/')}"
+    else:
+        full_url = base_url
 
     if request.query_params:
         full_url += f"?{request.query_params}"
